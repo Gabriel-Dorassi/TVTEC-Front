@@ -3,7 +3,7 @@ import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
 // URLs da API existente
-const API_URL = "https://cursos-tv.onrender.com/aluno";
+const API_URL = "https://cursos-tv.onrender.com/admin/aluno";
 const CURSO_API = "https://cursos-tv.onrender.com/curso";
 
 // Tipos para tipagem do TypeScript
@@ -107,6 +107,9 @@ export default function PaginaGerenciamento() {
   const carregarDados = async () => {
     setCarregando(true);
     try {
+
+      const token = localStorage.getItem("token");
+
       // Carregar cursos
       const resCursos = await fetch(`${CURSO_API}`);
       if (!resCursos.ok) throw new Error("Erro ao carregar cursos");
@@ -115,7 +118,11 @@ export default function PaginaGerenciamento() {
       console.log("Cursos carregados:", dadosCursos);
 
       // Carregar alunos
-      const resAlunos = await fetch(`${API_URL}`);
+      const resAlunos = await fetch(`${API_URL}`,{
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!resAlunos.ok) throw new Error("Erro ao carregar alunos");
       const dadosAlunos = await resAlunos.json();
       setAlunos(dadosAlunos);

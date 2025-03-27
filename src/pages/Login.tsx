@@ -1,10 +1,42 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
 // URL da API
 const API_URL = "https://cursos-tv.onrender.com";
+
+// Função para obter um token válido diretamente da API
+async function obterToken() {
+  try {
+    // Credenciais para a API
+    const credenciais = {
+      username: "admin",
+      password: "tvtec123"
+    };
+    
+    // Fazer a requisição para o endpoint de login
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(credenciais)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erro no login: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Retornar o token da resposta
+    return data.token;
+  } catch (error) {
+    console.error("Falha ao obter token:", error);
+    throw error;
+  }
+}
 
 export default function Login() {
   const [username, setUsername] = useState("admin"); // Nome de usuário padrão
@@ -12,6 +44,16 @@ export default function Login() {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Verificar se já está autenticado ao montar o componente
+  useEffect(() => {
+    const isAuthenticated = localStorage.getItem("auth") === "true";
+    if (isAuthenticated) {
+      // Se já estiver autenticado, redirecionar para admin
+      navigate("/admin");
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,22 +61,40 @@ export default function Login() {
 
     try {
       setLoading(true);
+      console.log("Tentando login com:", { username, senha });
 
-      // Primeiro verificamos se estamos usando a senha local (para compatibilidade)
+      // Verificação da senha local primeiro (para compatibilidade)
       if (senha === "tvtec123") {
-        // Login com senha local (manter compatibilidade com versão anterior)
-        localStorage.setItem("auth", "true");
-        localStorage.setItem("username", "admin");
-        localStorage.setItem("role", "admin");
-        
-        toast.success("Login realizado com sucesso!");
-        setTimeout(() => {
-          navigate("/admin");
-        }, 1000);
-        return;
+        try {
+          // Obter um token válido da API, mesmo para o login "local"
+          const token = await obterToken();
+          
+          // Login com senha local + token da API
+          localStorage.setItem("auth", "true");
+          localStorage.setItem("token", token);
+          localStorage.setItem("username", "admin");
+          localStorage.setItem("role", "admin");
+          
+          console.log("Login local bem-sucedido, dados salvos:", {
+            auth: localStorage.getItem("auth"),
+            token: token ? `${token.substring(0, 15)}...` : "Não obtido",
+            username: localStorage.getItem("username"),
+            role: localStorage.getItem("role"),
+          });
+          
+          toast.success("Login realizado com sucesso!");
+          
+          // Forçar um refresh da página
+          window.location.href = "/admin";
+          return;
+        } catch (error) {
+          console.error("Erro ao obter token durante login local:", error);
+          // Se falhar na obtenção do token, continua com o fluxo normal da API
+        }
       }
 
-      // Tenta fazer login usando a API
+      // Se a senha local não funcionar ou falhar na obtenção do token, tenta a API
+      console.log("Tentando login via API");
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
@@ -47,17 +107,13 @@ export default function Login() {
       });
 
       if (!response.ok) {
-        // Verifica se o servidor está disponível
-        if (response.status >= 500) {
-          throw new Error("Servidor indisponível. Tente novamente mais tarde.");
-        }
-
-        // Caso o servidor responda, mas com erro de credenciais
-        throw new Error("Credenciais inválidas. Tente novamente.");
+        console.error("Erro de resposta da API:", response.status, response.statusText);
+        throw new Error("Credenciais inválidas");
       }
 
       // Resposta bem-sucedida - parse do JSON
       const data = await response.json();
+      console.log("Resposta de login da API:", data);
 
       // Armazena os dados de autenticação
       localStorage.setItem("auth", "true");
@@ -65,16 +121,20 @@ export default function Login() {
       localStorage.setItem("username", data.username);
       localStorage.setItem("role", data.role);
 
+      console.log("Dados de autenticação salvos:", {
+        auth: localStorage.getItem("auth"),
+        token: localStorage.getItem("token")?.substring(0, 20) + "...",
+        username: localStorage.getItem("username"),
+        role: localStorage.getItem("role"),
+      });
+
       // Mostra mensagem de sucesso
       toast.success("Login realizado com sucesso!");
       
-      // Espera a notificação mostrar antes de redirecionar
-      setTimeout(() => {
-        navigate("/admin");
-      }, 1000);
+      // Forçar um refresh da página para garantir que o estado global seja atualizado
+      window.location.href = "/admin";
       
     } catch (error) {
-      // Mostra erro
       console.error("Erro no login:", error);
       setErro(error instanceof Error ? error.message : "Erro ao fazer login");
     } finally {

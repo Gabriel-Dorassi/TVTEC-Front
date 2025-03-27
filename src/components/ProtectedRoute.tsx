@@ -1,9 +1,5 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
-
-// URL da API
-const API_URL = "https://cursos-tv.onrender.com";
 
 type ProtectedRouteProps = {
   redirectPath?: string;
@@ -18,46 +14,10 @@ export default function ProtectedRoute({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem("token");
-      
-      // Se não há token, não está autenticado
-      if (!token) {
-        setIsAuthenticated(false);
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        // Validar o token com o backend
-        const response = await fetch(`${API_URL}/auth/validate`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          setIsAuthenticated(true);
-        } else {
-          // Se o token não é válido, limpar o armazenamento
-          localStorage.removeItem("token");
-          localStorage.removeItem("username");
-          localStorage.removeItem("role");
-          localStorage.removeItem("auth");
-          
-          setIsAuthenticated(false);
-          toast.error("Sua sessão expirou. Por favor, faça login novamente.");
-        }
-      } catch (error) {
-        console.error("Erro ao validar token:", error);
-        setIsAuthenticated(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    validateToken();
+    // Verificação simplificada - confia no localStorage
+    const auth = localStorage.getItem("auth") === "true";
+    setIsAuthenticated(auth);
+    setLoading(false);
   }, []);
 
   // Mostra um spinner enquanto verifica a autenticação

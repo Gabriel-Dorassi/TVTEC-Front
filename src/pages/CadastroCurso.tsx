@@ -42,7 +42,7 @@ export default function CadastroCurso() {
       console.log("ENVIANDO DADOS...");
       console.log("Dados enviados: ", dados);
 
-      const res = await fetch("https://cursos-tv.onrender.com/curso", {
+      const res = await fetch("https://cursos-tv.onrender.com/admin/curso", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dados),
