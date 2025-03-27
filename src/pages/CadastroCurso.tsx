@@ -39,12 +39,13 @@ export default function CadastroCurso() {
     };
 
     try {
+      const token = localStorage.getItem("token");
       console.log("ENVIANDO DADOS...");
       console.log("Dados enviados: ", dados);
 
       const res = await fetch("https://cursos-tv.onrender.com/admin/curso", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(dados),
       });
 
