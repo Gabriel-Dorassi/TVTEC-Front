@@ -25,6 +25,8 @@ export default function CadastroCurso() {
     console.log("ENVIANDO DADOS...");
 
     try {
+      const token = localStorage.getItem("token");
+
       const body = {
         nome: form.nome,
         professor: form.professor,
@@ -37,7 +39,7 @@ export default function CadastroCurso() {
 
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body),
       });
 
