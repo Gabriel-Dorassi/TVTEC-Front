@@ -2,21 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
-// Constante da URL da API (mantida para referência)
-const API_URL = "https://cursos-tv.onrender.com/curso";
+// Constantes das URLs da API
+const BASE_URL = "https://cursos-tv.onrender.com";
+const CURSO_URL = `${BASE_URL}/curso`;
+const ADMIN_URL = `${BASE_URL}/admin`;
 
-// Serviço de API que contorna o problema de CORS
+// Serviço de API corrigido com o caminho de admin
 const apiService = {
-  // Função para verificar se estamos em ambiente de desenvolvimento
-  isDevelopment: () => {
-    return window.location.hostname === 'localhost' || 
-           window.location.hostname === '127.0.0.1';
-  },
-
-  // Buscar todos os cursos
+  // Buscar todos os cursos (endpoint público)
   getCursos: async () => {
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(CURSO_URL);
       if (!response.ok) {
         throw new Error(`API respondeu com status ${response.status}`);
       }
@@ -27,31 +23,30 @@ const apiService = {
     }
   },
 
-  // Excluir um curso, contornando problema de CORS com cabeçalho X-Usuario
-  deleteCurso: async (id: number, usuario: string) => {
+  // Excluir um curso usando o caminho ADMIN correto
+  deleteCurso: async (id: number) => {
     try {
-      let url = `${API_URL}/${id}`;
+      // URL correta com prefixo /admin conforme o backend
+      const url = `${ADMIN_URL}/curso/${id}`;
+      const token = localStorage.getItem("token") || "";
+      
+      console.log(`Enviando requisição DELETE para ${url}`);
+      
+      // A rota requer autenticação de administrador
       const options: RequestInit = {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Token é obrigatório para rotas de admin
+        }
       };
-
-      // Se estamos em desenvolvimento, usamos uma abordagem diferente para evitar o erro CORS
-      if (apiService.isDevelopment()) {
-        // Adicionar o usuário como parâmetro de consulta em vez de cabeçalho
-        url = `${url}?usuario=${encodeURIComponent(usuario)}`;
-        
-        console.log(`Enviando requisição DELETE para ${url} (CORS contornado)`);
-      } else {
-        // Em produção, usamos o cabeçalho normalmente
-        options.headers = {
-          'X-Usuario': usuario
-        };
-      }
 
       const response = await fetch(url, options);
       
       if (!response.ok) {
-        throw new Error(`API respondeu com status ${response.status}`);
+        const errorText = await response.text();
+        console.error(`Erro na resposta: ${response.status} - ${errorText}`);
+        throw new Error(`API respondeu com status ${response.status}: ${errorText}`);
       }
       
       return { success: true };
@@ -66,6 +61,7 @@ export default function CursosDisponiveis() {
   const [cursos, setCursos] = useState<any[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [deletandoId, setDeletandoId] = useState<number | null>(null);
   const isAuthenticated = localStorage.getItem("auth") === "true";
   const usuario = localStorage.getItem("usuario") || "Administrador";
 
@@ -111,18 +107,25 @@ export default function CursosDisponiveis() {
     if (!confirmado) return;
 
     try {
-      setCarregando(true);
+      setDeletandoId(id);
       
-      // Usar o serviço de API que contorna o problema de CORS
-      await apiService.deleteCurso(id, usuario);
+      // Token é necessário por ser uma rota de admin
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Você precisa estar autenticado como administrador para excluir cursos");
+        return;
+      }
       
-      toast.success(`Curso "${nome}" removido por ${usuario}`);
+      // Chama o serviço para excluir o curso
+      await apiService.deleteCurso(id);
+      
+      toast.success(`Curso "${nome}" removido com sucesso`);
       await carregarCursos();
     } catch (error) {
       console.error("Erro ao apagar curso:", error);
-      toast.error("Erro ao apagar curso");
+      toast.error("Erro ao apagar curso. Verifique se você tem permissões de administrador.");
     } finally {
-      setCarregando(false);
+      setDeletandoId(null);
     }
   };
 
@@ -131,12 +134,14 @@ export default function CursosDisponiveis() {
       <h1 className="text-2xl font-bold mb-6 text-center">Cursos Disponíveis</h1>
       {erro && <p className="text-red-600 text-center">{erro}</p>}
       
-      {carregando && <p className="text-center my-4">Carregando cursos...</p>}
+      {carregando && !cursos.length && <p className="text-center my-4">Carregando cursos...</p>}
 
       <div className="grid sm:grid-cols-2 gap-4">
         {cursos.map((curso, index) => {
           const status = verificarStatus(curso.data);
           const podeInscrever = vagasAbertas(curso) && status === "Inscrições abertas";
+          const estaDeletando = deletandoId === curso.id;
+          
           return (
             <div key={index} className="border p-4 rounded shadow-md bg-white relative">
               <h2 className="text-lg font-semibold mb-2">{curso.nome}</h2>
@@ -167,15 +172,21 @@ export default function CursosDisponiveis() {
                 <button
                   onClick={() => apagarCurso(curso.id, curso.nome)}
                   className="absolute top-2 right-2 text-sm bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
-                  disabled={carregando}
+                  disabled={carregando || estaDeletando}
                 >
-                  {carregando ? "..." : "Apagar"}
+                  {estaDeletando ? "Excluindo..." : "Apagar"}
                 </button>
               )}
             </div>
           );
         })}
       </div>
+
+      {!carregando && cursos.length === 0 && (
+        <p className="text-center my-8 text-gray-600">
+          Nenhum curso disponível no momento.
+        </p>
+      )}
     </div>
   );
 }
