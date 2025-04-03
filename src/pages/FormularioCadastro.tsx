@@ -138,6 +138,12 @@ export default function FormularioCadastro({ cursoId }: FormularioCadastroProps)
     setMostrarBairros(false);
   };
 
+  // Formatar data para envio ao backend - dd/mm/aaaa
+  const formatarDataParaEnvio = (data: string): string => {
+    const [ano, mes, dia] = data.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+
   // Manipula o envio do formulário
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -151,55 +157,44 @@ export default function FormularioCadastro({ cursoId }: FormularioCadastroProps)
     setLoading(true);
     
     try {
-      // Primeiro cadastrar o aluno
-      const alunoResponse = await fetch(`${API_URL}/alunos`, {
+      // Formatar a data para o padrão esperado pelo backend (DD/MM/AAAA)
+      const dataFormatada = formatarDataParaEnvio(formData.dataNascto);
+      
+      // Montar payload conforme esperado pelo controller.AlunoController.CadastrarAlunoEInscrever
+      const payload = {
+        nome: formData.nome,
+        cpf: formData.cpf.replace(/\D/g, ""), // Remover formatação do CPF
+        email: formData.email,
+        curso: cursoId,
+        sexo: formData.sexo,
+        dataNascto: dataFormatada,
+        telefone: formData.telefone.replace(/\D/g, ""), // Remover formatação do telefone
+        escolaridade: formData.escolaridade,
+        trabalhando: formData.trabalhando,
+        bairro: formData.bairro,
+        ehCuidador: formData.ehCuidador,
+        ehPCD: formData.ehPCD,
+        tipoPCD: formData.tipoPCD,
+        necessitaElevador: formData.necessitaElevador,
+        comoSoube: formData.comoSoube,
+        autorizaWhatsApp: formData.autorizaWhatsApp
+      };
+
+      // Enviar diretamente para o endpoint de inscrição
+      const response = await fetch(`${API_URL}/aluno/inscricao`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          nome: formData.nome,
-          cpf: formData.cpf,
-          email: formData.email,
-          sexo: formData.sexo,
-          dataNascto: formData.dataNascto,
-          telefone: formData.telefone,
-          // Campos adicionais em um objeto metadata ou conforme seu backend espera
-          dadosAdicionais: {
-            escolaridade: formData.escolaridade,
-            trabalhando: formData.trabalhando,
-            bairro: formData.bairro,
-            ehCuidador: formData.ehCuidador,
-            ehPCD: formData.ehPCD,
-            tipoPCD: formData.tipoPCD,
-            necessitaElevador: formData.necessitaElevador,
-            comoSoube: formData.comoSoube,
-            autorizaWhatsApp: formData.autorizaWhatsApp
-          }
-        })
+        body: JSON.stringify(payload)
       });
       
-      if (!alunoResponse.ok) {
-        throw new Error(`Erro ao cadastrar aluno: ${alunoResponse.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || "Erro ao processar inscrição");
       }
       
-      const alunoData = await alunoResponse.json();
-      
-      // Depois fazer a inscrição no curso
-      const inscricaoResponse = await fetch(`${API_URL}/inscricoes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          alunoID: alunoData.id,
-          cursoID: cursoId
-        })
-      });
-      
-      if (!inscricaoResponse.ok) {
-        throw new Error(`Erro ao realizar inscrição: ${inscricaoResponse.status}`);
-      }
+      const responseData = await response.json();
       
       toast.success("Inscrição realizada com sucesso!");
       
