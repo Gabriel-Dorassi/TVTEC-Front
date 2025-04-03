@@ -1,35 +1,69 @@
-import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { validarCPF } from "../../utils/cpfUtils";
+import React, { useState, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
-// Lista de bairros (pode ser movida para um arquivo separado)
+// Interface para tipagem do curso
+interface Curso {
+  id: number;
+  nome: string;
+  professor: string;
+  data: string;
+  cargaHoraria: number;
+  certificado: string;
+  vagasTotais: number;
+  vagasPreenchidas: number;
+}
+
+// Interface para props do componente
+interface FormularioCadastroProps {
+  cursoId: number;
+}
+
+// Interface para dados do formulário
+interface FormData {
+  nome: string;
+  cpf: string;
+  email: string;
+  sexo: string;
+  dataNascto: string;
+  telefone: string;
+  escolaridade: string;
+  trabalhando: string;
+  bairro: string;
+  ehCuidador: string;
+  ehPCD: string;
+  tipoPCD: string;
+  necessitaElevador: string;
+  comoSoube: string;
+  autorizaWhatsApp: string;
+}
+
+// Lista de bairros (Exemplo - você pode substituir por sua própria lista)
 const BAIRROS: string[] = [
   "Centro", "Jardim América", "Boa Vista", "São José", "Vila Nova",
   "Alto da Serra", "Parque Industrial", "Santa Mônica", "Liberdade",
   "Flamengo", "Bom Retiro", "Ipiranga", "Mooca", "Tijuca", "Botafogo"
 ];
 
-// API URLs
-const API_URL = "https://cursos-tv.onrender.com/aluno";
-const CURSO_API = "https://cursos-tv.onrender.com/curso";
+export default function FormularioCadastro({ cursoId }: FormularioCadastroProps) {
+  const API_URL = "https://cursos-tv.onrender.com";
+  
+  const [loading, setLoading] = useState<boolean>(false);
+  const [curso, setCurso] = useState<Curso | null>(null);
+  const [filtroBairro, setFiltroBairro] = useState<string>("");
+  const [bairrosFiltrados, setBairrosFiltrados] = useState<string[]>([]);
+  const [bairroSelecionado, setBairroSelecionado] = useState<string>("");
+  const [mostrarBairros, setMostrarBairros] = useState<boolean>(false);
+  const [ehPCD, setEhPCD] = useState<boolean>(false);
 
-export default function InscricaoForm() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const cursoPreSelecionado = location.state?.cursoPreSelecionado || "";
-
-  // Estados principais
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nome: "",
     cpf: "",
     email: "",
-    curso: cursoPreSelecionado,
     sexo: "",
     dataNascto: "",
     telefone: "",
-    // Novos campos adicionados (baseados no primeiro componente)
+    // Novos campos
     escolaridade: "",
     trabalhando: "",
     bairro: "",
@@ -41,36 +75,31 @@ export default function InscricaoForm() {
     autorizaWhatsApp: ""
   });
 
-  // Estados para manejo de bairros
-  const [filtroBairro, setFiltroBairro] = useState("");
-  const [bairrosFiltrados, setBairrosFiltrados] = useState<string[]>([]);
-  const [mostrarBairros, setMostrarBairros] = useState(false);
-  const [ehPCD, setEhPCD] = useState(false);
-
-  // Outros estados
-  const [cursos, setCursos] = useState<any[]>([]);
-  const [erros, setErros] = useState<any>({});
-  const [loading, setLoading] = useState(false);
-
-  // Carregar cursos disponíveis
+  // Carrega informações do curso
   useEffect(() => {
-    fetch(CURSO_API)
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Cursos carregados:", data);
-        setCursos(data);
-      })
-      .catch(() => toast.error("Erro ao carregar cursos", { position: "top-center" }));
-  }, []);
+    if (!cursoId) return;
 
-  // Definir curso pré-selecionado, se disponível
-  useEffect(() => {
-    if (cursoPreSelecionado) {
-      setForm((prev) => ({ ...prev, curso: cursoPreSelecionado }));
-    }
-  }, [cursoPreSelecionado]);
+    const carregarCurso = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${API_URL}/cursos/${cursoId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Erro na resposta: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setCurso(data);
+      } catch (err: unknown) {
+        const error = err as Error;
+        console.error("Erro ao carregar curso:", error);
+        toast.error("Não foi possível carregar as informações do curso");
+      }
+    };
 
-  // Filtrar bairros com base no texto digitado
+    carregarCurso();
+  }, [cursoId]);
+
+  // Filtra bairros com base no texto digitado
   useEffect(() => {
     if (filtroBairro.trim() === "") {
       setBairrosFiltrados([]);
@@ -84,7 +113,7 @@ export default function InscricaoForm() {
     setBairrosFiltrados(filtrados);
   }, [filtroBairro]);
 
-  // Manipuladores de eventos
+  // Manipula mudanças nos campos do formulário
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
     
@@ -92,20 +121,126 @@ export default function InscricaoForm() {
       setEhPCD(value === "sim");
     }
     
-    setForm(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
-  // Manipulador para seleção de bairro
+  // Manipula a seleção de um bairro da lista
   const handleBairroSelect = (bairro: string): void => {
-    setForm(prev => ({
+    setFormData(prev => ({
       ...prev,
       bairro
     }));
+    setBairroSelecionado(bairro);
     setFiltroBairro("");
     setMostrarBairros(false);
+  };
+
+  // Manipula o envio do formulário
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    
+    // Validações básicas
+    if (!formData.nome || !formData.cpf || !formData.email) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Primeiro cadastrar o aluno
+      const alunoResponse = await fetch(`${API_URL}/alunos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          nome: formData.nome,
+          cpf: formData.cpf,
+          email: formData.email,
+          sexo: formData.sexo,
+          dataNascto: formData.dataNascto,
+          telefone: formData.telefone,
+          // Campos adicionais em um objeto metadata ou conforme seu backend espera
+          dadosAdicionais: {
+            escolaridade: formData.escolaridade,
+            trabalhando: formData.trabalhando,
+            bairro: formData.bairro,
+            ehCuidador: formData.ehCuidador,
+            ehPCD: formData.ehPCD,
+            tipoPCD: formData.tipoPCD,
+            necessitaElevador: formData.necessitaElevador,
+            comoSoube: formData.comoSoube,
+            autorizaWhatsApp: formData.autorizaWhatsApp
+          }
+        })
+      });
+      
+      if (!alunoResponse.ok) {
+        throw new Error(`Erro ao cadastrar aluno: ${alunoResponse.status}`);
+      }
+      
+      const alunoData = await alunoResponse.json();
+      
+      // Depois fazer a inscrição no curso
+      const inscricaoResponse = await fetch(`${API_URL}/inscricoes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          alunoID: alunoData.id,
+          cursoID: cursoId
+        })
+      });
+      
+      if (!inscricaoResponse.ok) {
+        throw new Error(`Erro ao realizar inscrição: ${inscricaoResponse.status}`);
+      }
+      
+      toast.success("Inscrição realizada com sucesso!");
+      
+      // Resetar formulário
+      setFormData({
+        nome: "",
+        cpf: "",
+        email: "",
+        sexo: "",
+        dataNascto: "",
+        telefone: "",
+        escolaridade: "",
+        trabalhando: "",
+        bairro: "",
+        ehCuidador: "",
+        ehPCD: "não",
+        tipoPCD: "",
+        necessitaElevador: "",
+        comoSoube: "",
+        autorizaWhatsApp: ""
+      });
+      
+      setEhPCD(false);
+      setBairroSelecionado("");
+      
+    } catch (err: unknown) {
+      console.error("Erro no cadastro:", err);
+      let errorMessage = "Erro desconhecido";
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = String((err as { message: unknown }).message);
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      toast.error(`Erro ao realizar inscrição: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Formatação de CPF para exibição
@@ -127,7 +262,7 @@ export default function InscricaoForm() {
       cpf = cpf.slice(0, 11);
     }
     
-    setForm(prev => ({
+    setFormData(prev => ({
       ...prev,
       cpf: formatarCPF(cpf)
     }));
@@ -142,140 +277,43 @@ export default function InscricaoForm() {
     }
     
     if (telefone.length <= 2) {
-      setForm(prev => ({ ...prev, telefone }));
+      setFormData(prev => ({ ...prev, telefone }));
     } else if (telefone.length <= 6) {
-      setForm(prev => ({ 
+      setFormData(prev => ({ 
         ...prev, 
         telefone: `(${telefone.slice(0, 2)}) ${telefone.slice(2)}` 
       }));
     } else {
-      setForm(prev => ({ 
+      setFormData(prev => ({ 
         ...prev, 
         telefone: `(${telefone.slice(0, 2)}) ${telefone.slice(2, 7)}-${telefone.slice(7)}` 
       }));
     }
   };
 
-  // Função para formatar data ISO para DD/MM/YYYY
-  const formatarData = (dataISO: string): string => {
-    if (!dataISO) return "";
-    const [ano, mes, dia] = dataISO.split('-');
-    return `${dia}/${mes}/${ano}`;
-  };
-
-  // Validação de formulário
-  const validar = () => {
-    const novosErros: any = {};
-    if (!form.nome.trim()) novosErros.nome = "Nome é obrigatório";
-    if (!form.cpf.trim()) novosErros.cpf = "CPF é obrigatório";
-    else if (!validarCPF(form.cpf)) novosErros.cpf = "CPF inválido";
-    if (!form.email.trim()) novosErros.email = "Email é obrigatório";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) novosErros.email = "Email inválido";
-    if (!form.curso) novosErros.curso = "Selecione um curso";
-    if (!form.sexo) novosErros.sexo = "Selecione o sexo";
-    if (!form.dataNascto) novosErros.dataNascto = "Data de nascimento é obrigatória";
-    if (!form.telefone.trim()) novosErros.telefone = "Telefone celular é obrigatório";
-    
-    // Validações para novos campos
-    if (!form.escolaridade) novosErros.escolaridade = "Escolaridade é obrigatória";
-    if (!form.trabalhando) novosErros.trabalhando = "Este campo é obrigatório";
-    if (!form.bairro) novosErros.bairro = "Bairro é obrigatório";
-    if (!form.ehCuidador) novosErros.ehCuidador = "Este campo é obrigatório";
-    if (!form.ehPCD) novosErros.ehPCD = "Este campo é obrigatório";
-    if (form.ehPCD === "sim" && !form.tipoPCD) novosErros.tipoPCD = "Especifique o tipo de deficiência";
-    if (!form.necessitaElevador) novosErros.necessitaElevador = "Este campo é obrigatório";
-    if (!form.comoSoube) novosErros.comoSoube = "Este campo é obrigatório";
-    if (!form.autorizaWhatsApp) novosErros.autorizaWhatsApp = "Este campo é obrigatório";
-    
-    setErros(novosErros);
-    return Object.keys(novosErros).length === 0;
-  };
-
-  // Manipulação do envio de formulário
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validar()) return;
-    
-    setLoading(true);
-
-    const cursoSelecionado = cursos.find((c: any) => c.nome === form.curso);
-    if (!cursoSelecionado) {
-      toast.error("Curso selecionado não encontrado", { position: "top-center" });
-      setLoading(false);
-      return;
-    }
-
-    console.log("Vagas do curso:", cursoSelecionado.vagasPreenchidas, "/", cursoSelecionado.vagasTotais);
-    
-    if (cursoSelecionado.vagasPreenchidas >= cursoSelecionado.vagasTotais) {
-      toast.error("As vagas para este curso já foram preenchidas", { position: "top-center" });
-      setLoading(false);
-      return;
-    }
-
-    const agora = new Date();
-    const data = agora.toISOString().slice(0, 10);
-    const hora = agora.toTimeString().slice(0, 5);
-
-    // Formatando a data de nascimento conforme esperado pelo backend (DD/MM/YYYY)
-    const dataNasctoFormatada = formatarData(form.dataNascto);
-
-    // Preparar dados conforme estrutura esperada pela API
-    const dadosParaEnviar = {
-      aluno: {
-        nome: form.nome,
-        cpf: form.cpf,
-        email: form.email,
-        sexo: form.sexo,
-        telefone: form.telefone,
-        dataNascto: dataNasctoFormatada,
-        // Adicionar campos extras em um objeto dadosAdicionais
-        dadosAdicionais: {
-          escolaridade: form.escolaridade,
-          trabalhando: form.trabalhando,
-          bairro: form.bairro,
-          ehCuidador: form.ehCuidador,
-          ehPCD: form.ehPCD,
-          tipoPCD: form.tipoPCD,
-          necessitaElevador: form.necessitaElevador,
-          comoSoube: form.comoSoube,
-          autorizaWhatsApp: form.autorizaWhatsApp
-        }
-      },
-      cursoId: cursoSelecionado.id
-    };
-
-    try {
-      console.log("Enviando dados:", dadosParaEnviar);
-      
-      const res = await fetch(`${API_URL}/inscricao`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dadosParaEnviar),
-      });
-
-      if (res.status === 409) {
-        toast.error("CPF já cadastrado para este curso", { position: "top-center" });
-        setLoading(false);
-        return;
-      }
-
-      if (!res.ok) throw new Error("Erro ao salvar inscrição");
-
-      localStorage.setItem("ultimaInscricaoData", data);
-      localStorage.setItem("ultimaInscricaoHora", hora);
-      toast.success("Inscrição enviada com sucesso!", { position: "top-center" });
-      setTimeout(() => navigate("/confirmacao"), 2000);
-    } catch (err) {
-      toast.error("Erro ao enviar inscrição. Tente novamente.", { position: "top-center" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!curso && cursoId) {
+    return (
+      <div className="flex justify-center my-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 animate-fade-in">
-      <h1 className="text-2xl font-bold mb-6">Formulário de Inscrição</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        {curso ? `Inscrição para o curso: ${curso.nome}` : "Formulário de Inscrição"}
+      </h1>
+      
+      {curso && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <h2 className="text-lg font-semibold text-blue-800">Informações do Curso</h2>
+          <p><strong>Professor:</strong> {curso.professor}</p>
+          <p><strong>Data:</strong> {new Date(curso.data).toLocaleDateString('pt-BR')}</p>
+          <p><strong>Carga Horária:</strong> {curso.cargaHoraria}h</p>
+          <p><strong>Vagas disponíveis:</strong> {curso.vagasTotais - curso.vagasPreenchidas} de {curso.vagasTotais}</p>
+        </div>
+      )}
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Dados Pessoais */}
@@ -290,12 +328,11 @@ export default function InscricaoForm() {
               <input
                 type="text"
                 name="nome"
-                value={form.nome}
+                value={formData.nome}
                 onChange={handleChange}
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
-              {erros.nome && <p className="text-red-600 text-sm mt-1">{erros.nome}</p>}
             </div>
             
             <div>
@@ -305,13 +342,12 @@ export default function InscricaoForm() {
               <input
                 type="text"
                 name="cpf"
-                value={form.cpf}
+                value={formData.cpf}
                 onChange={handleCPFChange}
                 placeholder="000.000.000-00"
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
-              {erros.cpf && <p className="text-red-600 text-sm mt-1">{erros.cpf}</p>}
             </div>
             
             <div>
@@ -321,12 +357,11 @@ export default function InscricaoForm() {
               <input
                 type="date"
                 name="dataNascto"
-                value={form.dataNascto}
+                value={formData.dataNascto}
                 onChange={handleChange}
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
-              {erros.dataNascto && <p className="text-red-600 text-sm mt-1">{erros.dataNascto}</p>}
             </div>
             
             <div>
@@ -336,12 +371,11 @@ export default function InscricaoForm() {
               <input
                 type="email"
                 name="email"
-                value={form.email}
+                value={formData.email}
                 onChange={handleChange}
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
-              {erros.email && <p className="text-red-600 text-sm mt-1">{erros.email}</p>}
             </div>
             
             <div>
@@ -351,13 +385,12 @@ export default function InscricaoForm() {
               <input
                 type="text"
                 name="telefone"
-                value={form.telefone}
+                value={formData.telefone}
                 onChange={handleTelefoneChange}
                 placeholder="(00) 00000-0000"
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
-              {erros.telefone && <p className="text-red-600 text-sm mt-1">{erros.telefone}</p>}
             </div>
             
             <div>
@@ -366,43 +399,17 @@ export default function InscricaoForm() {
               </label>
               <select
                 name="sexo"
-                value={form.sexo}
+                value={formData.sexo}
                 onChange={handleChange}
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
               >
                 <option value="">Selecione</option>
-                <option value="M">Masculino</option>
-                <option value="F">Feminino</option>
-                <option value="O">Não Binário</option>
-                <option value="N">Prefiro não informar</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Feminino">Feminino</option>
+                <option value="Não Binário">Não Binário</option>
+                <option value="Prefiro não informar">Prefiro não informar</option>
               </select>
-              {erros.sexo && <p className="text-red-600 text-sm mt-1">{erros.sexo}</p>}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Curso *
-              </label>
-              <select
-                name="curso"
-                value={form.curso}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="">Selecione o curso</option>
-                {cursos.map((curso: any, index) => (
-                  <option 
-                    key={index} 
-                    value={curso.nome}
-                    disabled={curso.vagasPreenchidas >= curso.vagasTotais}
-                  >
-                    {curso.nome} {curso.vagasPreenchidas >= curso.vagasTotais ? '(SEM VAGAS)' : ''}
-                  </option>
-                ))}
-              </select>
-              {erros.curso && <p className="text-red-600 text-sm mt-1">{erros.curso}</p>}
             </div>
             
             <div>
@@ -411,7 +418,7 @@ export default function InscricaoForm() {
               </label>
               <select
                 name="escolaridade"
-                value={form.escolaridade}
+                value={formData.escolaridade}
                 onChange={handleChange}
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
@@ -423,7 +430,6 @@ export default function InscricaoForm() {
                 <option value="Pós-Graduado">Pós-Graduado</option>
                 <option value="Outros">Outros</option>
               </select>
-              {erros.escolaridade && <p className="text-red-600 text-sm mt-1">{erros.escolaridade}</p>}
             </div>
             
             <div>
@@ -436,7 +442,7 @@ export default function InscricaoForm() {
                     type="radio"
                     name="trabalhando"
                     value="sim"
-                    checked={form.trabalhando === "sim"}
+                    checked={formData.trabalhando === "sim"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
@@ -447,14 +453,13 @@ export default function InscricaoForm() {
                     type="radio"
                     name="trabalhando"
                     value="não"
-                    checked={form.trabalhando === "não"}
+                    checked={formData.trabalhando === "não"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Não</span>
                 </label>
               </div>
-              {erros.trabalhando && <p className="text-red-600 text-sm mt-1">{erros.trabalhando}</p>}
             </div>
             
             <div className="relative">
@@ -468,7 +473,7 @@ export default function InscricaoForm() {
                   setFiltroBairro(e.target.value);
                   setMostrarBairros(true);
                 }}
-                placeholder={form.bairro || "Digite para buscar bairros"}
+                placeholder={bairroSelecionado || "Digite para buscar bairros"}
                 className="w-full p-2 border border-gray-300 rounded-md"
                 onFocus={() => setMostrarBairros(true)}
               />
@@ -486,7 +491,6 @@ export default function InscricaoForm() {
                   ))}
                 </div>
               )}
-              {erros.bairro && <p className="text-red-600 text-sm mt-1">{erros.bairro}</p>}
             </div>
           </div>
         </fieldset>
@@ -506,7 +510,7 @@ export default function InscricaoForm() {
                     type="radio"
                     name="ehCuidador"
                     value="sim"
-                    checked={form.ehCuidador === "sim"}
+                    checked={formData.ehCuidador === "sim"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
@@ -517,14 +521,13 @@ export default function InscricaoForm() {
                     type="radio"
                     name="ehCuidador"
                     value="não"
-                    checked={form.ehCuidador === "não"}
+                    checked={formData.ehCuidador === "não"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Não</span>
                 </label>
               </div>
-              {erros.ehCuidador && <p className="text-red-600 text-sm mt-1">{erros.ehCuidador}</p>}
             </div>
             
             <div>
@@ -537,7 +540,7 @@ export default function InscricaoForm() {
                     type="radio"
                     name="ehPCD"
                     value="sim"
-                    checked={form.ehPCD === "sim"}
+                    checked={formData.ehPCD === "sim"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
@@ -548,17 +551,16 @@ export default function InscricaoForm() {
                     type="radio"
                     name="ehPCD"
                     value="não"
-                    checked={form.ehPCD === "não"}
+                    checked={formData.ehPCD === "não"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Não</span>
                 </label>
               </div>
-              {erros.ehPCD && <p className="text-red-600 text-sm mt-1">{erros.ehPCD}</p>}
             </div>
             
-            {form.ehPCD === "sim" && (
+            {formData.ehPCD === "sim" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Qual deficiência? *
@@ -566,12 +568,11 @@ export default function InscricaoForm() {
                 <input
                   type="text"
                   name="tipoPCD"
-                  value={form.tipoPCD}
+                  value={formData.tipoPCD}
                   onChange={handleChange}
                   className="w-full p-2 border border-gray-300 rounded-md"
-                  required={form.ehPCD === "sim"}
+                  required={formData.ehPCD === "sim"}
                 />
-                {erros.tipoPCD && <p className="text-red-600 text-sm mt-1">{erros.tipoPCD}</p>}
               </div>
             )}
             
@@ -585,7 +586,7 @@ export default function InscricaoForm() {
                     type="radio"
                     name="necessitaElevador"
                     value="sim"
-                    checked={form.necessitaElevador === "sim"}
+                    checked={formData.necessitaElevador === "sim"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
@@ -596,14 +597,13 @@ export default function InscricaoForm() {
                     type="radio"
                     name="necessitaElevador"
                     value="não"
-                    checked={form.necessitaElevador === "não"}
+                    checked={formData.necessitaElevador === "não"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Não</span>
                 </label>
               </div>
-              {erros.necessitaElevador && <p className="text-red-600 text-sm mt-1">{erros.necessitaElevador}</p>}
             </div>
             
             <div>
@@ -612,7 +612,7 @@ export default function InscricaoForm() {
               </label>
               <select
                 name="comoSoube"
-                value={form.comoSoube}
+                value={formData.comoSoube}
                 onChange={handleChange}
                 required
                 className="w-full p-2 border border-gray-300 rounded-md"
@@ -622,7 +622,6 @@ export default function InscricaoForm() {
                 <option value="Indicação">Indicação</option>
                 <option value="Outro">Outro</option>
               </select>
-              {erros.comoSoube && <p className="text-red-600 text-sm mt-1">{erros.comoSoube}</p>}
             </div>
             
             <div className="col-span-2">
@@ -636,7 +635,7 @@ export default function InscricaoForm() {
                     type="radio"
                     name="autorizaWhatsApp"
                     value="autorizo"
-                    checked={form.autorizaWhatsApp === "autorizo"}
+                    checked={formData.autorizaWhatsApp === "autorizo"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
@@ -647,14 +646,13 @@ export default function InscricaoForm() {
                     type="radio"
                     name="autorizaWhatsApp"
                     value="não autorizo"
-                    checked={form.autorizaWhatsApp === "não autorizo"}
+                    checked={formData.autorizaWhatsApp === "não autorizo"}
                     onChange={handleChange}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Não autorizo</span>
                 </label>
               </div>
-              {erros.autorizaWhatsApp && <p className="text-red-600 text-sm mt-1">{erros.autorizaWhatsApp}</p>}
             </div>
           </div>
         </fieldset>
@@ -679,7 +677,7 @@ export default function InscricaoForm() {
         </div>
       </form>
       
-      <ToastContainer autoClose={3000} hideProgressBar theme="colored" position="top-center" />
+      <ToastContainer autoClose={3000} hideProgressBar theme="colored" />
     </div>
   );
 }
