@@ -4,6 +4,18 @@ import { toast, ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
 // Interface para tipagem das inscrições
+interface DadosAdicionais {
+  escolaridade?: string;
+  trabalhando?: string;
+  bairro?: string;
+  ehCuidador?: string;
+  ehPCD?: string;
+  tipoPCD?: string;
+  necessitaElevador?: string;
+  comoSoube?: string;
+  autorizaWhatsApp?: string;
+}
+
 interface Aluno {
   id: number;
   nome: string;
@@ -12,6 +24,7 @@ interface Aluno {
   sexo: string;
   dataNascto: string;
   telefone: string;
+  dadosAdicionais?: DadosAdicionais;
 }
 
 interface Curso {
@@ -30,8 +43,8 @@ interface Inscricao {
   aluno: Aluno;
   curso: Curso;
   dataInscricao: string;
-  alunoID: number;
-  cursoID: number;
+  alunoId: number;
+  cursoId: number;
 }
 
 export default function InscricoesDetalhadas() {
@@ -40,6 +53,7 @@ export default function InscricoesDetalhadas() {
   const [enviado, setEnviado] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState("");
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const isAuthenticated = localStorage.getItem("auth") === "true";
   const API_URL = "https://cursos-tv.onrender.com";
 
@@ -67,6 +81,8 @@ export default function InscricoesDetalhadas() {
       const data = await response.json();
       
       if (Array.isArray(data)) {
+        console.log("Dados recebidos:", data);
+        setDebugInfo(data.length > 0 ? data[0] : null);
         setInscricoes(data);
       } else {
         setInscricoes([]);
@@ -98,23 +114,51 @@ export default function InscricoesDetalhadas() {
     return `${data.toLocaleDateString('pt-BR')} às ${data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
+  const temDadosAdicionais = (inscricao: Inscricao) => {
+    return inscricao.aluno.dadosAdicionais !== undefined;
+  };
+
   const exportar = () => {
     if (inscricoes.length === 0) return toast.info("Nenhuma inscrição para exportar.");
     
+    // Verificar se alguma inscrição tem dados adicionais
+    const temCamposExtras = inscricoes.some(insc => temDadosAdicionais(insc));
+    
     // Formatar dados para exportação
-    const dadosExportacao = inscricoes.map(insc => ({
-      'Nome do Aluno': insc.aluno.nome,
-      'CPF': insc.aluno.cpf,
-      'Email': insc.aluno.email,
-      'Telefone': insc.aluno.telefone || "Não informado",
-      'Gênero': insc.aluno.sexo,
-      'Data de Nascimento': formatarData(insc.aluno.dataNascto),
-      'Curso': insc.curso.nome,
-      'Professor': insc.curso.professor,
-      'Data do Curso': formatarData(insc.curso.data),
-      'Carga Horária': insc.curso.cargaHoraria,
-      'Data de Inscrição': formatarDataHora(insc.dataInscricao)
-    }));
+    const dadosExportacao = inscricoes.map(insc => {
+      const dadosBasicos = {
+        'Nome do Aluno': insc.aluno.nome,
+        'CPF': insc.aluno.cpf,
+        'Email': insc.aluno.email,
+        'Telefone': insc.aluno.telefone || "Não informado",
+        'Gênero': insc.aluno.sexo,
+        'Data de Nascimento': formatarData(insc.aluno.dataNascto),
+        'Curso': insc.curso.nome,
+        'Professor': insc.curso.professor,
+        'Data do Curso': formatarData(insc.curso.data),
+        'Carga Horária': insc.curso.cargaHoraria,
+        'Data de Inscrição': formatarDataHora(insc.dataInscricao)
+      };
+      
+      // Se houver dados adicionais, incluí-los na exportação
+      if (temDadosAdicionais(insc)) {
+        const dadosAdicionais = insc.aluno.dadosAdicionais || {};
+        return {
+          ...dadosBasicos,
+          'Escolaridade': dadosAdicionais.escolaridade || "Não informado",
+          'Trabalhando': dadosAdicionais.trabalhando || "Não informado",
+          'Bairro': dadosAdicionais.bairro || "Não informado",
+          'É Cuidador': dadosAdicionais.ehCuidador || "Não informado",
+          'É PCD': dadosAdicionais.ehPCD || "Não informado",
+          'Tipo PCD': dadosAdicionais.tipoPCD || "Não aplicável",
+          'Necessita Elevador': dadosAdicionais.necessitaElevador || "Não informado",
+          'Como Soube': dadosAdicionais.comoSoube || "Não informado",
+          'Autoriza WhatsApp': dadosAdicionais.autorizaWhatsApp || "Não informado",
+        };
+      }
+      
+      return dadosBasicos;
+    });
     
     exportToExcel(dadosExportacao, "inscricoes-detalhadas");
     toast.success("Planilha gerada com sucesso!");
@@ -186,14 +230,53 @@ export default function InscricoesDetalhadas() {
   };
 
   // Filtrar inscrições com base no texto de busca
-  const inscricoesFiltradas = inscricoes.filter(insc => 
-    insc.aluno.nome.toLowerCase().includes(filtro.toLowerCase()) ||
-    insc.aluno.cpf.includes(filtro) ||
-    insc.aluno.email.toLowerCase().includes(filtro.toLowerCase()) ||
-    insc.curso.nome.toLowerCase().includes(filtro.toLowerCase())
-  );
+  const inscricoesFiltradas = inscricoes.filter(insc => {
+    const textoBusca = filtro.toLowerCase();
+    const dadosAdicionais = insc.aluno.dadosAdicionais || {};
+    
+    // Verificação básica nos campos que sempre existem
+    const matchBasico = 
+      insc.aluno.nome.toLowerCase().includes(textoBusca) ||
+      insc.aluno.cpf.includes(textoBusca) ||
+      insc.aluno.email.toLowerCase().includes(textoBusca) ||
+      insc.curso.nome.toLowerCase().includes(textoBusca);
+    
+    // Se já encontrou nos campos básicos ou não tem dados adicionais, retorna
+    if (matchBasico || !temDadosAdicionais(insc)) {
+      return matchBasico;
+    }
+    
+    // Verificar nos campos adicionais se existirem
+    return (
+      (dadosAdicionais.bairro || "").toLowerCase().includes(textoBusca) ||
+      (dadosAdicionais.escolaridade || "").toLowerCase().includes(textoBusca) ||
+      (dadosAdicionais.comoSoube || "").toLowerCase().includes(textoBusca)
+    );
+  });
+
+  const showDebugInfo = () => {
+    if (!debugInfo) return null;
+    
+    return (
+      <div className="p-4 bg-gray-100 rounded mb-4 text-sm">
+        <h3 className="font-bold mb-2">Informações de Debug</h3>
+        <pre className="overflow-auto max-h-64">
+          {JSON.stringify(debugInfo, null, 2)}
+        </pre>
+        <button 
+          onClick={() => setDebugInfo(null)} 
+          className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Fechar Debug
+        </button>
+      </div>
+    );
+  };
 
   if (!isAuthenticated) return <p className="text-center mt-10">Você precisa estar logado para visualizar.</p>;
+
+  // Verificar se alguma inscrição tem dados adicionais para ajustar a UI
+  const algumTemDadosAdicionais = inscricoes.some(insc => temDadosAdicionais(insc));
 
   return (
     <div className="max-w-6xl mx-auto p-4 animate-fade-in">
@@ -234,12 +317,17 @@ export default function InscricoesDetalhadas() {
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Buscar por nome, CPF, email ou curso..."
+          placeholder={algumTemDadosAdicionais 
+            ? "Buscar por nome, CPF, email, curso, bairro..." 
+            : "Buscar por nome, CPF, email ou curso..."}
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded"
         />
       </div>
+
+      {/* Apenas mostrar debug em ambiente de desenvolvimento ou se solicitado explicitamente */}
+      {false && showDebugInfo()}
 
       {loading ? (
         <div className="flex justify-center my-8">
@@ -300,6 +388,15 @@ export default function InscricoesDetalhadas() {
                             <p><strong>Telefone:</strong> {inscricao.aluno.telefone || "Não informado"}</p>
                             <p><strong>Gênero:</strong> {inscricao.aluno.sexo}</p>
                             <p><strong>Data de Nascimento:</strong> {formatarData(inscricao.aluno.dataNascto)}</p>
+                            
+                            {/* Exibir dados adicionais, se existirem */}
+                            {temDadosAdicionais(inscricao) && (
+                              <>
+                                <p><strong>Escolaridade:</strong> {inscricao.aluno.dadosAdicionais?.escolaridade || "Não informado"}</p>
+                                <p><strong>Trabalhando:</strong> {inscricao.aluno.dadosAdicionais?.trabalhando || "Não informado"}</p>
+                                <p><strong>Bairro:</strong> {inscricao.aluno.dadosAdicionais?.bairro || "Não informado"}</p>
+                              </>
+                            )}
                           </div>
                           
                           <div>
@@ -311,11 +408,32 @@ export default function InscricoesDetalhadas() {
                             <p><strong>Vagas Preenchidas:</strong> {inscricao.curso.vagasPreenchidas} de {inscricao.curso.vagasTotais}</p>
                           </div>
                           
+                          {/* Exibir seção de informações adicionais, se existirem */}
+                          {temDadosAdicionais(inscricao) && (
+                            <div className="md:col-span-2">
+                              <h3 className="font-bold text-blue-800 mb-2">Informações Adicionais</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <p><strong>É Cuidador:</strong> {inscricao.aluno.dadosAdicionais?.ehCuidador || "Não informado"}</p>
+                                <p><strong>É PCD:</strong> {inscricao.aluno.dadosAdicionais?.ehPCD || "Não informado"}</p>
+                                
+                                {inscricao.aluno.dadosAdicionais?.ehPCD === "sim" && (
+                                  <p><strong>Tipo de PCD:</strong> {inscricao.aluno.dadosAdicionais?.tipoPCD || "Não informado"}</p>
+                                )}
+                                
+                                <p><strong>Necessita Elevador:</strong> {inscricao.aluno.dadosAdicionais?.necessitaElevador || "Não informado"}</p>
+                                <p><strong>Como Soube do Curso:</strong> {inscricao.aluno.dadosAdicionais?.comoSoube || "Não informado"}</p>
+                                <p><strong>Autoriza WhatsApp:</strong> {inscricao.aluno.dadosAdicionais?.autorizaWhatsApp || "Não informado"}</p>
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="md:col-span-2">
                             <h3 className="font-bold text-blue-800 mb-2">Dados da Inscrição</h3>
                             <p><strong>Data:</strong> {formatarData(inscricao.dataInscricao)}</p>
                             <p><strong>Hora:</strong> {formatarHora(inscricao.dataInscricao)}</p>
                             <p><strong>ID da Inscrição:</strong> {inscricao.id}</p>
+                            <p><strong>ID do Aluno:</strong> {inscricao.alunoId}</p>
+                            <p><strong>ID do Curso:</strong> {inscricao.cursoId}</p>
                           </div>
                         </div>
                       </td>
