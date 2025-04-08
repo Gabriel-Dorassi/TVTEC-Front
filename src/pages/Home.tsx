@@ -96,7 +96,7 @@ export default function Home() {
           <div className="md:w-1/3 flex justify-center">
             <div className="bg-white p-5 rounded-full shadow-xl overflow-hidden flex items-center justify-center transform hover:scale-105 transition duration-300" style={{ width: '220px', height: '220px' }}>
               <img 
-                src="/TVTEC-logo.png" 
+                src="/tvtec-redondo.png" 
                 alt="TVTEC Cursos" 
                 className="max-w-full max-h-full object-contain" 
               />
