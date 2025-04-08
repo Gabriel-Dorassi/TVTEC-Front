@@ -20,7 +20,6 @@ export default function InscricaoForm() {
     sexo: "",
     dataNascto: "",
     telefone: "",
-    // Novos campos
     escolaridade: "",
     trabalhando: "",
     bairro: "",
@@ -29,19 +28,42 @@ export default function InscricaoForm() {
     tipoPCD: "",
     necessitaElevador: "",
     comoSoube: "",
-    autorizaWhatsApp: ""
+    autorizaWhatsApp: "",
+    levaNotebook: ""
   });
 
   const [cursos, setCursos] = useState<any[]>([]);
   const [erros, setErros] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [mostrarCamposPCD, setMostrarCamposPCD] = useState(false);
+  const [mostrarCampoNotebook, setMostrarCampoNotebook] = useState(false);
+  const [isMinoridade, setIsMinoridade] = useState(false);
+
+  useEffect(() => {
+    const cursoArmazenado = sessionStorage.getItem('cursoPreSelecionado');
+    if (cursoArmazenado) {
+      setForm(prevForm => ({ ...prevForm, curso: cursoArmazenado }));
+      sessionStorage.removeItem('cursoPreSelecionado');
+    }
+    
+    const handleCursoSelecionado = (event: any) => {
+      const nomeCurso = event.detail;
+      if (nomeCurso) {
+        setForm(prevForm => ({ ...prevForm, curso: nomeCurso }));
+      }
+    };
+    
+    window.addEventListener('cursoSelecionado', handleCursoSelecionado);
+    
+    return () => {
+      window.removeEventListener('cursoSelecionado', handleCursoSelecionado);
+    };
+  }, []);
 
   useEffect(() => {
     fetch(CURSO_API)
       .then((res) => res.json())
       .then((data) => {
-        console.log("Cursos carregados:", data);
         setCursos(data);
       })
       .catch(() => toast.error("Erro ao carregar cursos", { position: "top-center" }));
@@ -50,13 +72,44 @@ export default function InscricaoForm() {
   useEffect(() => {
     if (cursoPreSelecionado) {
       setForm((prev) => ({ ...prev, curso: cursoPreSelecionado }));
+      if (cursoPreSelecionado.toLowerCase().includes("canva")) {
+        setMostrarCampoNotebook(true);
+      }
     }
   }, [cursoPreSelecionado]);
 
   useEffect(() => {
-    // Mostrar campos de PCD apenas quando ehPCD for "S"
     setMostrarCamposPCD(form.ehPCD === "S");
   }, [form.ehPCD]);
+
+  useEffect(() => {
+    setMostrarCampoNotebook(form.curso.toLowerCase().includes("canva"));
+    
+    if (!form.curso.toLowerCase().includes("canva")) {
+      setForm(prev => ({ ...prev, levaNotebook: "" }));
+    }
+  }, [form.curso]);
+
+  useEffect(() => {
+    if (form.dataNascto) {
+      const dataNascimento = new Date(form.dataNascto);
+      const hoje = new Date();
+      
+      let idade = hoje.getFullYear() - dataNascimento.getFullYear();
+      const mesAtual = hoje.getMonth();
+      const diaAtual = hoje.getDate();
+      const mesNascimento = dataNascimento.getMonth();
+      const diaNascimento = dataNascimento.getDate();
+      
+      if (mesAtual < mesNascimento || (mesAtual === mesNascimento && diaAtual < diaNascimento)) {
+        idade--;
+      }
+      
+      setIsMinoridade(idade < 18);
+    } else {
+      setIsMinoridade(false);
+    }
+  }, [form.dataNascto]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -64,7 +117,6 @@ export default function InscricaoForm() {
   };
 
   const formatarData = (dataISO: string): string => {
-    // Converter formato yyyy-MM-dd para dd/MM/yyyy
     if (!dataISO) return "";
     const [ano, mes, dia] = dataISO.split('-');
     return `${dia}/${mes}/${ano}`;
@@ -73,7 +125,6 @@ export default function InscricaoForm() {
   const validar = () => {
     const novosErros: any = {};
     
-    // Validações dos campos originais
     if (!form.nome.trim()) novosErros.nome = "Nome é obrigatório";
     if (!form.cpf.trim()) novosErros.cpf = "CPF é obrigatório";
     else if (!validarCPF(form.cpf)) novosErros.cpf = "CPF inválido";
@@ -83,8 +134,6 @@ export default function InscricaoForm() {
     if (!form.sexo) novosErros.sexo = "Selecione o sexo";
     if (!form.dataNascto) novosErros.dataNascto = "Data de nascimento é obrigatória";
     if (!form.telefone.trim()) novosErros.telefone = "Telefone celular é obrigatório";
-    
-    // Validações dos novos campos
     if (!form.escolaridade) novosErros.escolaridade = "Escolaridade é obrigatória";
     if (!form.trabalhando) novosErros.trabalhando = "Informe se está trabalhando";
     if (!form.bairro.trim()) novosErros.bairro = "Bairro é obrigatório";
@@ -94,6 +143,10 @@ export default function InscricaoForm() {
     if (form.ehPCD === "S" && !form.necessitaElevador) novosErros.necessitaElevador = "Informe se necessita de elevador";
     if (!form.comoSoube) novosErros.comoSoube = "Informe como soube do curso";
     if (!form.autorizaWhatsApp) novosErros.autorizaWhatsApp = "Informe se autoriza contato por WhatsApp";
+    if (form.autorizaWhatsApp === "N") novosErros.autorizaWhatsApp = "É necessário autorizar o contato via WhatsApp para prosseguir com a inscrição";
+    if (form.curso.toLowerCase().includes("canva") && !form.levaNotebook) {
+      novosErros.levaNotebook = "Informe se irá levar notebook";
+    }
     
     setErros(novosErros);
     return Object.keys(novosErros).length === 0;
@@ -111,8 +164,6 @@ export default function InscricaoForm() {
       setLoading(false);
       return;
     }
-
-    console.log("Vagas do curso:", cursoSelecionado.vagasPreenchidas, "/", cursoSelecionado.vagasTotais);
     
     if (cursoSelecionado.vagasPreenchidas >= cursoSelecionado.vagasTotais) {
       toast.error("As vagas para este curso já foram preenchidas", { position: "top-center" });
@@ -120,32 +171,19 @@ export default function InscricaoForm() {
       return;
     }
 
-    // Preparar os dados para envio
     const dataNasctoFormatada = formatarData(form.dataNascto);
     const agora = new Date();
-    const dataFormatada = `${agora.getDate().toString().padStart(2, '0')}/${(agora.getMonth() + 1).toString().padStart(2, '0')}/${agora.getFullYear()}`; // DD/MM/YYYY
-
-    // Verificar o curso selecionado e obter o ID correto
-    console.log("Curso selecionado:", cursoSelecionado);
+    const dataFormatada = `${agora.getDate().toString().padStart(2, '0')}/${(agora.getMonth() + 1).toString().padStart(2, '0')}/${agora.getFullYear()}`;
     
-    // Preparar os dados para envio
     const dadosParaEnviar = {
-      // Dados do aluno
       nome: form.nome,
-      cpf: form.cpf.replace(/[^\d]/g, ''), // Remover caracteres não numéricos
+      cpf: form.cpf.replace(/[^\d]/g, ''),
       email: form.email,
       sexo: form.sexo,
-      telefone: form.telefone.replace(/[^\d]/g, ''), // Remover caracteres não numéricos
+      telefone: form.telefone.replace(/[^\d]/g, ''),
       dataNascto: dataNasctoFormatada,
-      
-      // Dados do curso - Curso deve ser um número (uint) conforme erro do backend
-      curso: parseInt(cursoSelecionado.id.toString()), // Enviar ID como número
-      // Não enviar cursoId separadamente para evitar confusão
-      
-      // Data de inscrição
+      curso: parseInt(cursoSelecionado.id.toString()),
       dataInscricao: dataFormatada,
-      
-      // Novos campos
       escolaridade: form.escolaridade,
       trabalhando: form.trabalhando,
       bairro: form.bairro,
@@ -154,10 +192,9 @@ export default function InscricaoForm() {
       tipoPCD: form.ehPCD === "S" ? form.tipoPCD : "",
       necessitaElevador: form.ehPCD === "S" ? form.necessitaElevador : "N",
       comoSoube: form.comoSoube,
-      autorizaWhatsApp: form.autorizaWhatsApp
+      autorizaWhatsApp: form.autorizaWhatsApp,
+      levaNotebook: form.curso.toLowerCase().includes("canva") ? form.levaNotebook : "N"
     };
-
-    console.log("Dados para envio:", dadosParaEnviar);
 
     try {
       const res = await fetch(`${API_URL}/inscricao`, {
@@ -166,11 +203,9 @@ export default function InscricaoForm() {
         body: JSON.stringify(dadosParaEnviar),
       });
 
-      // Obter o corpo da resposta para melhor diagnóstico
       let responseBody;
       try {
         responseBody = await res.text();
-        console.log("Resposta do servidor:", res.status, responseBody);
       } catch (e) {
         console.error("Não foi possível ler o corpo da resposta:", e);
       }
@@ -184,7 +219,6 @@ export default function InscricaoForm() {
       if (res.status === 400) {
         let errorMessage = "Dados inválidos. Verifique o formulário e tente novamente.";
         
-        // Tentar extrair mensagem de erro mais específica
         if (responseBody) {
           try {
             const jsonResponse = JSON.parse(responseBody);
@@ -194,7 +228,6 @@ export default function InscricaoForm() {
               errorMessage = jsonResponse.error;
             }
           } catch (e) {
-            // Se não for JSON, usar o texto bruto se for curto o suficiente
             if (responseBody.length < 100) {
               errorMessage = responseBody;
             }
@@ -208,7 +241,6 @@ export default function InscricaoForm() {
 
       if (!res.ok) throw new Error(`Erro ao salvar inscrição: ${res.status}`);
 
-      // Registrar o horário da inscrição
       localStorage.setItem("ultimaInscricaoData", agora.toISOString().slice(0, 10));
       localStorage.setItem("ultimaInscricaoHora", agora.toTimeString().slice(0, 5));
       
@@ -226,7 +258,6 @@ export default function InscricaoForm() {
     <div className="w-full max-w-2xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6 text-center">Formulário de Inscrição</h1>
       <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
-        {/* Campos originais */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="nome" className="block text-sm font-medium mb-1">Nome completo</label>
@@ -319,6 +350,39 @@ export default function InscricaoForm() {
           </div>
         </div>
 
+        {isMinoridade && (
+          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200 mb-4">
+            <div className="flex items-start mb-2">
+              <div className="text-yellow-600 mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-yellow-800">Atenção: Termo de Consentimento para Menor de Idade</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Para menores de 18 anos, é necessário que um responsável legal assine o termo de consentimento.
+                  Baixe o documento, preencha-o e traga assinado no primeiro dia de aula.
+                </p>
+              </div>
+            </div>
+            <a 
+              href="/Autorizacao-para-participacao-de-menores-no-curso.pdf" 
+              download="Autorizacao-para-participacao-de-menores-no-curso.pdf"
+              className="mt-2 inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Baixar Termo de Consentimento
+            </a>
+          </div>
+        )}
+
         <div>
           <label htmlFor="curso" className="block text-sm font-medium mb-1">Curso de interesse</label>
           <select 
@@ -341,6 +405,31 @@ export default function InscricaoForm() {
           </select>
           {erros.curso && <p className="text-red-600 text-sm mt-1">{erros.curso}</p>}
         </div>
+
+        {mostrarCampoNotebook && (
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-2">
+              <h3 className="font-bold text-blue-800">Informação importante para o curso de Canva</h3>
+              <p className="text-sm text-blue-700 mt-1">
+              </p>
+            </div>
+            <div>
+              <label htmlFor="levaNotebook" className="block text-sm font-medium mb-1">Você irá levar seu próprio notebook?</label>
+              <select 
+                id="levaNotebook"
+                name="levaNotebook" 
+                value={form.levaNotebook} 
+                onChange={handleChange} 
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione uma opção</option>
+                <option value="S">Sim, levarei meu notebook</option>
+                <option value="N">Não, precisarei usar um computador do local</option>
+              </select>
+              {erros.levaNotebook && <p className="text-red-600 text-sm mt-1">{erros.levaNotebook}</p>}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -451,7 +540,6 @@ export default function InscricaoForm() {
           </div>
         </div>
 
-        {/* Campos condicionais para PCD */}
         {mostrarCamposPCD && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
             <div>
@@ -488,6 +576,9 @@ export default function InscricaoForm() {
 
         <div>
           <label htmlFor="autorizaWhatsApp" className="block text-sm font-medium mb-1">Autoriza contato via WhatsApp?</label>
+          <div className="bg-yellow-50 p-3 rounded mb-2 text-sm">
+            <p className="text-yellow-800">Por favor, note que é necessário autorizar contato via WhatsApp para facilitar a comunicação durante o curso.</p>
+          </div>
           <select 
             id="autorizaWhatsApp"
             name="autorizaWhatsApp" 

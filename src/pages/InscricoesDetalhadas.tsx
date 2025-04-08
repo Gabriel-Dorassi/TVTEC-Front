@@ -22,7 +22,7 @@ interface Aluno {
   cpf: string;
   email: string;
   sexo: string;
-  dataNascto: string;
+  dataNascto: string; 
   telefone: string;
   dadosAdicionais?: DadosAdicionais;
 }
