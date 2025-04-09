@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
+// Importação correta da imagem com TypeScript
+import tvtecLogo from "/images/tvtec-logo.png";
+
 export default function Menu() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,9 +55,14 @@ export default function Menu() {
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
               <img 
-                src="/tvtec-logo.png" 
+                src={tvtecLogo} 
                 alt="TVTEC Logo" 
                 className="h-10 w-auto mr-2" 
+                onError={(e) => {
+                  console.error('Erro ao carregar logo');
+                  const img = e.target as HTMLImageElement;
+                  img.src = "https://placehold.co/40x40/FFFFFF/2563EB?text=TV";
+                }}
               />
               <Link to="/" className="text-white font-bold text-xl">
                 TVTEC Cursos

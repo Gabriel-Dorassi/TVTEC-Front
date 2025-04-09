@@ -4,6 +4,10 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import InscricaoForm from "../forms/forms/InscricaoForm";
 
+// Importações de imagens - agora funcionarão corretamente com o arquivo de tipos
+import tvtecRedondo from "/images/tvtec-redondo.png";
+import prefeituraLogo from "/images/prefeitura-logo.jpeg";
+
 const BASE_URL = "https://cursos-tv.onrender.com";
 const CURSO_URL = `${BASE_URL}/curso`;
 
@@ -87,8 +91,10 @@ export default function Home() {
             <div className="w-20 h-1 bg-teal-400 mb-6"></div>
             <p className="text-lg mb-6 text-blue-100">
             A TVTEC Cursos oferece cursos práticos e diretos, capacitando os participantes em áreas essenciais como produção audiovisual, redes sociais e empreendedorismo digital.
-            <p>Transformamos talentos e ideias em oportunidades reais, permitindo que os jundiaienses trilhem seus próprios caminhos profissionais.</p>            
             </p>
+            <p className="text-lg mb-6 text-blue-100">
+            Transformamos talentos e ideias em oportunidades reais, permitindo que os jundiaienses trilhem seus próprios caminhos profissionais.
+            </p>            
             <Link to="/cursos-disponiveis" className="inline-block px-6 py-3 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 transition duration-300 shadow-md">
               Ver todos os cursos
             </Link>
@@ -96,9 +102,14 @@ export default function Home() {
           <div className="md:w-1/3 flex justify-center">
             <div className="bg-white p-5 rounded-full shadow-xl overflow-hidden flex items-center justify-center transform hover:scale-105 transition duration-300" style={{ width: '220px', height: '220px' }}>
               <img 
-                src="/tvtec-redondo.png" 
+                src={tvtecRedondo} 
                 alt="TVTEC Cursos" 
                 className="max-w-full max-h-full object-contain" 
+                onError={(e) => {
+                  console.error('Erro ao carregar imagem');
+                  const img = e.target as HTMLImageElement;
+                  img.src = "https://placehold.co/200x200/FFFFFF/2563EB?text=TVTEC";
+                }}
               />
             </div>
           </div>
@@ -232,9 +243,14 @@ export default function Home() {
           </div>
           <div className="md:w-1/3 mt-6 md:mt-0">
             <img 
-              src="/prefeitura-logo.jpeg" 
+              src={prefeituraLogo} 
               alt="Prefeitura de Jundiaí" 
               className="mx-auto max-h-48" 
+              onError={(e) => {
+                console.error('Erro ao carregar imagem');
+                const img = e.target as HTMLImageElement;
+                img.src = "https://placehold.co/300x150/FFFFFF/2563EB?text=Prefeitura+de+Jundiaí";
+              }}
             />
           </div>
         </div>
