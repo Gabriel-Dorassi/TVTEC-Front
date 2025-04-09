@@ -244,17 +244,18 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <h3 className="text-lg font-semibold mb-2">Contato</h3>
-            <p>Email: contato@tvteccursos.com.br</p>
-            <p>Telefone: (11) 1234-5678</p>
+            <p>Email: coordenacao@class.tvtecjundiai.com.br</p>
+            <p>Telefone: (11) 4587-5151</p>
+            <p>WhatsApp: (11) 99729-4044</p>
           </div>
           <div>
             <h3 className="text-lg font-semibold mb-2">Endereço</h3>
-            <p>Rua XXXX, 123 - Jundiaí, SP</p>
-            <p>CEP: 13000-000</p>
+            <p>Complexo Argos - Av. Dr. Cavalcanti, 396 - Centro, Jundiaí, SP</p>
+            <p>CEP: 13201-003</p>
           </div>
           <div>
             <h3 className="text-lg font-semibold mb-2">Horário</h3>
-            <p>Segunda a Sexta: 09:00 às 18:00</p>
+            <p>Segunda a Sexta: 09:00 às 17:00</p>
           </div>
         </div>
         <div className="mt-4 text-center text-sm">
