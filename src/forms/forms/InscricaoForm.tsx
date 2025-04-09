@@ -157,7 +157,7 @@ export default function InscricaoForm() {
     if (!validar()) return;
     
     setLoading(true);
-
+  
     const cursoSelecionado = cursos.find((c: any) => c.nome === form.curso);
     if (!cursoSelecionado) {
       toast.error("Curso selecionado não encontrado", { position: "top-center" });
@@ -170,52 +170,60 @@ export default function InscricaoForm() {
       setLoading(false);
       return;
     }
-
+  
+    // Formatação correta da data para DD/MM/AAAA
     const dataNasctoFormatada = formatarData(form.dataNascto);
+    
     const agora = new Date();
     const dataFormatada = `${agora.getDate().toString().padStart(2, '0')}/${(agora.getMonth() + 1).toString().padStart(2, '0')}/${agora.getFullYear()}`;
     
     const dadosParaEnviar = {
-      nome: form.nome,
+      nome: form.nome.trim(),
       cpf: form.cpf.replace(/[^\d]/g, ''),
-      email: form.email,
+      email: form.email.trim().toLowerCase(),
       sexo: form.sexo,
       telefone: form.telefone.replace(/[^\d]/g, ''),
-      dataNascto: dataNasctoFormatada,
-      curso: parseInt(cursoSelecionado.id.toString()),
-      dataInscricao: dataFormatada,
+      dataNascto: dataNasctoFormatada, // Usar o formato DD/MM/AAAA
+      curso: cursoSelecionado.id, // Enviar o ID original sem conversão
+      dataInscricao: dataFormatada, // Já está no formato DD/MM/AAAA
       escolaridade: form.escolaridade,
       trabalhando: form.trabalhando,
-      bairro: form.bairro,
+      bairro: form.bairro.trim(),
       ehCuidador: form.ehCuidador,
       ehPCD: form.ehPCD,
-      tipoPCD: form.ehPCD === "S" ? form.tipoPCD : "",
+      tipoPCD: form.ehPCD === "S" ? form.tipoPCD.trim() : "",
       necessitaElevador: form.ehPCD === "S" ? form.necessitaElevador : "N",
       comoSoube: form.comoSoube,
       autorizaWhatsApp: form.autorizaWhatsApp,
       levaNotebook: form.curso.toLowerCase().includes("canva") ? form.levaNotebook : "N"
     };
-
+  
+    console.log("Dados a enviar:", dadosParaEnviar);
+  
     try {
       const res = await fetch(`${API_URL}/inscricao`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify(dadosParaEnviar),
       });
-
+  
       let responseBody;
       try {
         responseBody = await res.text();
+        console.log("Resposta:", responseBody);
       } catch (e) {
-        console.error("Não foi possível ler o corpo da resposta:", e);
+        console.error("Erro ao ler resposta:", e);
       }
-
+  
       if (res.status === 409) {
         toast.error("CPF já cadastrado para este curso", { position: "top-center" });
         setLoading(false);
         return;
       }
-
+  
       if (res.status === 400) {
         let errorMessage = "Dados inválidos. Verifique o formulário e tente novamente.";
         
@@ -238,9 +246,9 @@ export default function InscricaoForm() {
         setLoading(false);
         return;
       }
-
+  
       if (!res.ok) throw new Error(`Erro ao salvar inscrição: ${res.status}`);
-
+  
       localStorage.setItem("ultimaInscricaoData", agora.toISOString().slice(0, 10));
       localStorage.setItem("ultimaInscricaoHora", agora.toTimeString().slice(0, 5));
       
