@@ -52,7 +52,7 @@ export default function Menu() {
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
               <img 
-                src="/TVTEC-LOGO.png" 
+                src="/tvtec-logo.png" 
                 alt="TVTEC Logo" 
                 className="h-10 w-auto mr-2" 
               />
