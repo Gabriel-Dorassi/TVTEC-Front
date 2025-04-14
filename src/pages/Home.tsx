@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import 'react-toastify/dist/ReactToastify.css';
 import InscricaoForm from "../forms/forms/InscricaoForm";
 
-// Importações de imagens - agora funcionarão corretamente com o arquivo de tipos
+// Importações de imagens
 import tvtecRedondo from "/images/tvtec-redondo.png";
 import prefeituraLogo from "/images/prefeitura-logo.jpeg";
 
@@ -15,27 +15,26 @@ export default function Home() {
   const [cursos, setCursos] = useState<any[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
-  const navigate = useNavigate();
-
-  const carregarCursos = async () => {
-    setCarregando(true);
-    try {
-      const response = await fetch(CURSO_URL);
-      if (!response.ok) {
-        throw new Error(`API respondeu com status ${response.status}`);
-      }
-      const dados = await response.json();
-      setCursos(dados);
-      setErro("");
-    } catch (error) {
-      console.error("Erro ao carregar cursos:", error);
-      setErro("Erro ao carregar cursos");
-    } finally {
-      setCarregando(false);
-    }
-  };
 
   useEffect(() => {
+    const carregarCursos = async () => {
+      setCarregando(true);
+      try {
+        const response = await fetch(CURSO_URL);
+        if (!response.ok) {
+          throw new Error(`API respondeu com status ${response.status}`);
+        }
+        const dados = await response.json();
+        setCursos(dados);
+        setErro("");
+      } catch (error) {
+        console.error("Erro ao carregar cursos:", error);
+        setErro("Erro ao carregar cursos");
+      } finally {
+        setCarregando(false);
+      }
+    };
+
     carregarCursos();
   }, []);
 
@@ -50,6 +49,12 @@ export default function Home() {
     const preenchidas = curso.vagasPreenchidas ?? 0;
     const totais = curso.vagasTotais ?? 0;
     return totais - preenchidas > 0;
+  };
+
+  const isDataValida = (data: string) => {
+    const hoje = new Date();
+    const dataCurso = new Date(data);
+    return hoje <= dataCurso;
   };
 
   const formatarData = (data: string) => {
@@ -132,7 +137,7 @@ export default function Home() {
 
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
           {cursos.map((curso, index) => {
-            const podeInscrever = vagasAbertas(curso);
+            const podeInscrever = vagasAbertas(curso) && isDataValida(curso.data);
             const percentualPreenchido = Math.min(100, ((curso.vagasPreenchidas ?? 0) / (curso.vagasTotais ?? 1)) * 100);
             
             return (
@@ -151,6 +156,7 @@ export default function Home() {
                     </span>
                   </div>
                   
+
                   <div className="flex items-center mb-3 text-gray-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -158,6 +164,7 @@ export default function Home() {
                     <span className="text-sm truncate">Prof. {curso.professor || "Não informado"}</span>
                   </div>
                   
+
                   <div className="flex items-center mb-4 text-gray-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -165,6 +172,7 @@ export default function Home() {
                     <span className="text-sm">{curso.cargaHoraria}h</span>
                   </div>
                   
+
                   <div className="mb-5">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-sm font-medium text-gray-700">Vagas preenchidas</span>
@@ -183,6 +191,7 @@ export default function Home() {
                     </div>
                   </div>
                   
+
                   {podeInscrever ? (
                     <button
                       onClick={() => handleInscricao(curso)}
@@ -195,7 +204,7 @@ export default function Home() {
                       disabled
                       className="block w-full text-center py-2.5 rounded-lg font-medium text-white bg-gray-400 cursor-not-allowed"
                     >
-                      Vagas Esgotadas
+                      Vagas Esgotadas ou Curso Iniciado
                     </button>
                   )}
                 </div>
